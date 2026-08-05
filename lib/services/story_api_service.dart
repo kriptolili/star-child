@@ -6,7 +6,7 @@ import '../models/child_profile.dart';
 import '../models/story_result.dart';
 
 class StoryApiService {
-  static const String _baseUrl = 'http://127.0.0.1:3000';
+ static const String _baseUrl = 'https://star-child.onrender.com';
 
   Future<StoryResult> createStory(
     ChildProfile profile,
