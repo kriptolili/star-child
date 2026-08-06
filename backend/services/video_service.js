@@ -7,6 +7,8 @@ const {
   selectComposition,
 } = require("@remotion/renderer");
 
+const VIDEO_TIMEOUT_MS = 10 * 60 * 1000;
+
 function createDirectory(directoryPath) {
   fs.mkdirSync(directoryPath, {
     recursive: true,
@@ -52,10 +54,7 @@ async function createStoryVideo({
     );
   }
 
-  if (
-    !audioPath ||
-    !fs.existsSync(audioPath)
-  ) {
+  if (!audioPath || !fs.existsSync(audioPath)) {
     throw new Error(
       `Video seslendirmesi bulunamadı: ${audioPath}`
     );
@@ -160,68 +159,116 @@ async function createStoryVideo({
     audioFile: audioFileName,
   };
 
-  console.log(
-    "📦 Video files and narration are being prepared..."
-  );
-
-  const bundleLocation = await bundle({
-    entryPoint: path.join(
-      remotionDirectory,
-      "src",
-      "Root.jsx"
-    ),
-
-    publicDir: publicDirectory,
-  });
-
-  const composition =
-    await selectComposition({
-      serveUrl: bundleLocation,
-      id: "StarChildVideo",
-      inputProps,
-    });
-
   const outputPath = path.join(
     outputDirectory,
     `${childSlug}_Star_Journey.mp4`
   );
 
-  console.log(
-    "✨ Creating your narrated animated story..."
-  );
+  try {
+    console.log(
+      "📦 Video dosyaları ve ses hazırlanıyor..."
+    );
 
-  await renderMedia({
-    composition,
-    serveUrl: bundleLocation,
-    codec: "h264",
-    audioCodec: "aac",
-    outputLocation: outputPath,
-    inputProps,
+    const bundleLocation = await bundle({
+      entryPoint: path.join(
+        remotionDirectory,
+        "src",
+        "Root.jsx"
+      ),
+      publicDir: publicDirectory,
+    });
 
-    chromiumOptions: {
-      enableMultiProcessOnLinux: true,
-    },
+    console.log(
+      "🎬 Video kompozisyonu yükleniyor..."
+    );
 
-    onProgress: ({ progress }) => {
-      const percentage =
-        Math.round(progress * 100);
+    const composition =
+      await selectComposition({
+        serveUrl: bundleLocation,
+        id: "StarChildVideo",
+        inputProps,
+        timeoutInMilliseconds:
+          VIDEO_TIMEOUT_MS,
+        chromiumOptions: {
+          enableMultiProcessOnLinux: false,
+        },
+      });
 
-      process.stdout.write(
-        `\r🎞️ Creating narrated video: %${percentage}`
+    console.log(
+      "✨ Seslendirmeli video oluşturuluyor..."
+    );
+
+    let lastPercentage = -1;
+
+    await renderMedia({
+      composition,
+      serveUrl: bundleLocation,
+      codec: "h264",
+      audioCodec: "aac",
+      outputLocation: outputPath,
+      inputProps,
+
+      concurrency: 1,
+
+      timeoutInMilliseconds:
+        VIDEO_TIMEOUT_MS,
+
+      chromiumOptions: {
+        enableMultiProcessOnLinux: false,
+      },
+
+      onProgress: ({ progress }) => {
+        const percentage =
+          Math.round(progress * 100);
+
+        if (percentage === lastPercentage) {
+          return;
+        }
+
+        lastPercentage = percentage;
+
+        console.log(
+          `🎞️ Video ilerlemesi: %${percentage}`
+        );
+      },
+    });
+
+    if (!fs.existsSync(outputPath)) {
+      throw new Error(
+        "Video işlemi tamamlandı ancak MP4 dosyası bulunamadı."
       );
-    },
-  });
+    }
 
-  console.log("");
+    console.log(
+      `✅ Seslendirmeli video hazır: ${outputPath}`
+    );
 
-  console.log(
-    `✅ Narrated video is ready: ${outputPath}`
-  );
+    return {
+      outputPath,
+      fileName: path.basename(outputPath),
+    };
+  } catch (error) {
+    if (fs.existsSync(outputPath)) {
+      try {
+        fs.unlinkSync(outputPath);
+      } catch (_) {
+        // Yarım video silinemese bile
+        // asıl hata korunur.
+      }
+    }
 
-  return {
-    outputPath,
-    fileName: path.basename(outputPath),
-  };
+    console.error(
+      "⚠️ Video oluşturulamadı:",
+      error?.message || error
+    );
+
+    throw new Error(
+      `Video oluşturulamadı: ${
+        error?.message ||
+        "Bilinmeyen video hatası."
+      }`
+    );
+  }
 }
 
 module.exports = {
