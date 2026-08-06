@@ -435,7 +435,7 @@ function buildNarrationText({
  */
 function splitNarrationText(
   text,
-  maxCharacters = 5000
+  maxCharacters = 2500
 ) {
   const normalizedText =
     String(text || "").trim();
