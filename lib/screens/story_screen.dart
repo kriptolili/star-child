@@ -39,6 +39,7 @@ class _StoryScreenState extends State<StoryScreen> {
 
     setState(() {
       _isPreparingPackage = true;
+      _packageResult = null;
       _packageError = null;
     });
 
@@ -53,13 +54,16 @@ class _StoryScreenState extends State<StoryScreen> {
 
       setState(() {
         _packageResult = packageResult;
+        _packageError = null;
         _isPreparingPackage = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Your Star Package is Ready! ✨',
+            packageResult.message.trim().isNotEmpty
+                ? packageResult.message
+                : 'Your Star Package is Ready! ✨',
           ),
         ),
       );
@@ -67,8 +71,9 @@ class _StoryScreenState extends State<StoryScreen> {
       if (!mounted) return;
 
       setState(() {
-        _isPreparingPackage = false;
+        _packageResult = null;
         _packageError = _cleanError(error);
+        _isPreparingPackage = false;
       });
     }
   }
@@ -157,11 +162,14 @@ class _StoryScreenState extends State<StoryScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
-                    onPressed: () =>
-                        Navigator.pop(context),
-                    icon: const Icon(
+                    onPressed: _isPreparingPackage
+                        ? null
+                        : () => Navigator.pop(context),
+                    icon: Icon(
                       Icons.arrow_back_ios_new,
-                      color: AppColors.cream,
+                      color: _isPreparingPackage
+                          ? AppColors.muted
+                          : AppColors.cream,
                     ),
                   ),
                 ),
@@ -295,7 +303,7 @@ class _StoryScreenState extends State<StoryScreen> {
                   onOpenPdf: () => _openUrl(
                     packageResult?.pdfUrl,
                     unavailableMessage:
-                        'Your narration is not ready yet.',
+                        'Your storybook is not ready yet.',
                   ),
                   onOpenAudio: () => _openUrl(
                     packageResult?.audioUrl,
@@ -364,6 +372,47 @@ class _PackageSection extends StatelessWidget {
 
   bool get isReady => packageResult != null;
 
+  bool get hasError =>
+      errorMessage != null &&
+      errorMessage!.trim().isNotEmpty;
+
+  String get title {
+    if (isPreparing) {
+      return 'Your Star Package is Being Prepared';
+    }
+
+    if (isReady) {
+      return 'Your Star Package is Ready ✨';
+    }
+
+    if (hasError) {
+      return 'Your Star Package Could Not Be Prepared';
+    }
+
+    return 'Prepare Your Star Package';
+  }
+
+  String get description {
+    if (isPreparing) {
+      return '$illustrationCount illustrated pages, '
+          'storybook and narration are being prepared. '
+          'Please keep this page open.';
+    }
+
+    if (isReady) {
+      return '${packageResult!.imageUrls.length} illustrated pages, '
+          'storybook and narration are ready.';
+    }
+
+    if (hasError) {
+      return 'The package could not be completed. '
+          'Please review the message below and try again.';
+    }
+
+    return '$illustrationCount illustrated pages, '
+        'PDF storybook and narration will be prepared.';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -377,7 +426,9 @@ class _PackageSection extends StatelessWidget {
         border: Border.all(
           color: isReady
               ? AppColors.gold
-              : AppColors.fieldBorder,
+              : hasError
+                  ? const Color(0x66D98898)
+                  : AppColors.fieldBorder,
         ),
         boxShadow: const [
           BoxShadow(
@@ -389,18 +440,24 @@ class _PackageSection extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.auto_stories_rounded,
-            color: AppColors.gold,
+          Icon(
+            isReady
+                ? Icons.auto_awesome_rounded
+                : hasError
+                    ? Icons.error_outline_rounded
+                    : Icons.auto_stories_rounded,
+            color: isReady
+                ? AppColors.gold
+                : hasError
+                    ? const Color(0xFFD98898)
+                    : AppColors.gold,
             size: 44,
           ),
 
           const SizedBox(height: 12),
 
           Text(
-            isReady
-                ? 'Yıldız Paketini Hazırla'
-                : 'Your Star Package is Ready',
+            title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.cream,
@@ -413,11 +470,7 @@ class _PackageSection extends StatelessWidget {
           const SizedBox(height: 10),
 
           Text(
-            isReady
-                ? '${packageResult!.imageUrls.length} resimli sayfa, '
-                    'illustrated pages, storybook and narration are ready.'
-                : '$illustrationCount resimli sayfa, PDF kitap '
-                    've sıcak seslendirme hazırlanacak.',
+            description,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.lavender,
@@ -426,8 +479,7 @@ class _PackageSection extends StatelessWidget {
             ),
           ),
 
-          if (errorMessage != null &&
-              errorMessage!.isNotEmpty) ...[
+          if (hasError) ...[
             const SizedBox(height: 16),
             Container(
               width: double.infinity,
@@ -453,16 +505,16 @@ class _PackageSection extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          if (!isReady)
+          if (isPreparing)
+            const _PreparingPackageIndicator()
+          else if (!isReady)
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed:
-                    isPreparing ? null : onPrepare,
+                onPressed: onPrepare,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.gold,
                   foregroundColor: AppColors.darkText,
-                  disabledBackgroundColor: AppColors.fieldBorder,
                   padding: const EdgeInsets.symmetric(
                     vertical: 17,
                   ),
@@ -470,67 +522,85 @@ class _PackageSection extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: isPreparing
-                    ? const Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 21,
-                            height: 21,
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: AppColors.cream,
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Flexible(
-                            child: Text(
-                              'illustrated pages, premium storybook, narration and video will be created.',
-                              textAlign:
-                                  TextAlign.center,
-                            ),
-                          ),
-                        ],
-                      )
-                    : const Text(
-                        'Prepare Star Package',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                child: Text(
+                  hasError
+                      ? 'Try Again'
+                      : 'Prepare Star Package',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             )
           else ...[
-            _PackageButton(
-              icon: Icons.menu_book_rounded,
-              label: 'Open Storybook',
-              enabled: packageResult!.hasPdf,
-              onPressed: onOpenPdf,
-            ),
+            if (packageResult!.hasPdf)
+              _PackageButton(
+                icon: Icons.menu_book_rounded,
+                label: 'Open Storybook',
+                enabled: true,
+                onPressed: onOpenPdf,
+              )
+            else
+              const _UnavailablePackageItem(
+                icon: Icons.menu_book_rounded,
+                label: 'Storybook is not available.',
+              ),
 
             const SizedBox(height: 11),
 
-            _PackageButton(
-              icon: Icons.headphones_rounded,
-              label: 'Listen to Story',
-              enabled: packageResult!.hasAudio,
-              onPressed: onOpenAudio,
-            ),
+            if (packageResult!.hasAudio)
+              _PackageButton(
+                icon: Icons.headphones_rounded,
+                label: 'Listen to Story',
+                enabled: true,
+                onPressed: onOpenAudio,
+              )
+            else
+              const _UnavailablePackageItem(
+                icon: Icons.headphones_rounded,
+                label: 'Narration is not available.',
+              ),
 
             const SizedBox(height: 11),
 
-            _PackageButton(
-              icon: Icons.play_circle_fill_rounded,
-              label: 'Watch Story Video',
-              enabled: packageResult!.hasVideo,
-              onPressed: onOpenVideo,
-              helperText: packageResult!.hasVideo
-                  ? null
-                  : 'Video is being prepared...',
-            ),
+            if (packageResult!.hasVideo)
+              _PackageButton(
+                icon: Icons.play_circle_fill_rounded,
+                label: 'Watch Story Video',
+                enabled: true,
+                onPressed: onOpenVideo,
+              )
+            else
+              const _UnavailablePackageItem(
+                icon: Icons.play_circle_fill_rounded,
+                label: 'Video will be added later.',
+              ),
+
+            if (packageResult!.hasImages) ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.image_rounded,
+                    color: AppColors.gold,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${packageResult!.imageUrls.length} '
+                    'illustrated pages are ready.',
+                    style: const TextStyle(
+                      color: AppColors.lavender,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
 
           if (isReady &&
@@ -556,68 +626,146 @@ class _PackageSection extends StatelessWidget {
   }
 }
 
+class _PreparingPackageIndicator
+    extends StatelessWidget {
+  const _PreparingPackageIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        vertical: 17,
+        horizontal: 16,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.fieldBorder,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 21,
+            height: 21,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: AppColors.cream,
+            ),
+          ),
+          SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              'Illustrated pages, storybook and narration '
+              'are being prepared...',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.cream,
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PackageButton extends StatelessWidget {
   const _PackageButton({
     required this.icon,
     required this.label,
     required this.enabled,
     required this.onPressed,
-    this.helperText,
   });
 
   final IconData icon;
   final String label;
   final bool enabled;
   final VoidCallback onPressed;
-  final String? helperText;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: enabled ? onPressed : null,
-            icon: Icon(icon),
-            label: Text(label),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.cream,
-              disabledForegroundColor:
-                  AppColors.muted,
-              padding: const EdgeInsets.symmetric(
-                vertical: 16,
-                horizontal: 16,
-              ),
-              side: BorderSide(
-                color: enabled
-                    ? AppColors.gold
-                    : AppColors.fieldBorder,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(16),
-              ),
-              textStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: enabled ? onPressed : null,
+        icon: Icon(icon),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.cream,
+          disabledForegroundColor:
+              AppColors.muted,
+          padding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 16,
+          ),
+          side: BorderSide(
+            color: enabled
+                ? AppColors.gold
+                : AppColors.fieldBorder,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        if (helperText != null) ...[
-          const SizedBox(height: 6),
-          Text(
-            helperText!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.muted,
-              fontSize: 11,
-              height: 1.4,
+      ),
+    );
+  }
+}
+
+class _UnavailablePackageItem
+    extends StatelessWidget {
+  const _UnavailablePackageItem({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        vertical: 15,
+        horizontal: 16,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.fieldBorder,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: AppColors.muted,
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
-      ],
+      ),
     );
   }
 }
