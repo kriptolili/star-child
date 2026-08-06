@@ -957,8 +957,7 @@ async function createStarPackage({
     imagePaths,
     outputPath: pdfPath,
   });
-
-    let speechResult = null;
+  let speechResult = null;
 
   if (
     profile.voiceEnabled !== false
@@ -976,20 +975,17 @@ async function createStarPackage({
       });
   }
 
+  /*
+   * Video üretimi Render'ın mevcut kaynaklarında
+   * paketin tamamını çok uzun süre beklettiği için
+   * ana paket akışından geçici olarak ayrıldı.
+   *
+   * Görseller, PDF ve ses hazır olur olmaz
+   * kullanıcıya döndürülecek.
+   */
   console.log(
-    "🎬 Video hazırlanıyor..."
+    "⏳ Video üretimi ana paket akışından ayrıldı."
   );
-
-  const videoResult =
-  await createStoryVideo({
-    profile,
-    story,
-    imagePaths,
-    audioPath:
-      speechResult?.outputPath,
-    outputDirectory:
-      videoDirectory,
-  });
 
   return {
     rootDirectory,
@@ -1004,11 +1000,8 @@ async function createStarPackage({
       speechResult?.fileName ||
       null,
 
-    videoPath:
-      videoResult.outputPath,
-
-    videoFileName:
-      videoResult.fileName,
+    videoPath: null,
+    videoFileName: null,
 
     disclosure:
       speechResult?.disclosure ||
