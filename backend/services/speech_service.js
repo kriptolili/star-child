@@ -371,7 +371,6 @@ const NARRATION_PHRASES = {
       "Amanhã nos encontraremos novamente em uma nova jornada estelar.",
   },
 };
-
 function sanitizeFileName(value) {
   return String(value || "star_child")
     .normalize("NFD")
@@ -402,28 +401,178 @@ function buildNarrationText({
     NARRATION_PHRASES[resolvedLanguage];
 
   const pageTexts = illustrations
-    .map((page) => `${page.title}. ${page.text}`)
+    .map(
+      (page) =>
+        `${page.title}. ${page.text}`
+    )
     .join("\n\n");
 
   return [
     phrases.hello(childName),
-
     phrases.journey,
-
     phrases.ready,
-
     phrases.guardian(guardianStar),
-
     pageTexts,
-
     phrases.lullaby,
-
     lullaby,
-
     phrases.goodNight(childName),
-
     phrases.tomorrow,
-  ].join("\n\n");
+  ]
+    .filter(
+      (part) =>
+        typeof part === "string" &&
+        part.trim().isNotEmpty
+    )
+    .join("\n\n");
+}
+
+/*
+ * TTS servisinin tek istek sınırını güvenli biçimde
+ * aşmamak için metni yaklaşık 5.000 karakterlik
+ * doğal parçalara ayırır.
+ *
+ * Önce paragrafları, gerekirse cümleleri korur.
+ */
+function splitNarrationText(
+  text,
+  maxCharacters = 5000
+) {
+  const normalizedText =
+    String(text || "").trim();
+
+  if (!normalizedText) {
+    return [];
+  }
+
+  if (
+    normalizedText.length <=
+    maxCharacters
+  ) {
+    return [normalizedText];
+  }
+
+  const paragraphs =
+    normalizedText
+      .split(/\n\s*\n/u)
+      .map((paragraph) =>
+        paragraph.trim()
+      )
+      .filter(Boolean);
+
+  const chunks = [];
+  let currentChunk = "";
+
+  function pushCurrentChunk() {
+    const cleanChunk =
+      currentChunk.trim();
+
+    if (cleanChunk) {
+      chunks.push(cleanChunk);
+    }
+
+    currentChunk = "";
+  }
+
+  function appendPart(part) {
+    const cleanPart =
+      String(part || "").trim();
+
+    if (!cleanPart) {
+      return;
+    }
+
+    const candidate =
+      currentChunk.length > 0
+        ? `${currentChunk}\n\n${cleanPart}`
+        : cleanPart;
+
+    if (
+      candidate.length <=
+      maxCharacters
+    ) {
+      currentChunk = candidate;
+      return;
+    }
+
+    pushCurrentChunk();
+
+    if (
+      cleanPart.length <=
+      maxCharacters
+    ) {
+      currentChunk = cleanPart;
+      return;
+    }
+
+    const sentences =
+      cleanPart
+        .split(
+          /(?<=[.!?…。！？])\s+/u
+        )
+        .map((sentence) =>
+          sentence.trim()
+        )
+        .filter(Boolean);
+
+    for (const sentence of sentences) {
+      if (
+        sentence.length <=
+        maxCharacters
+      ) {
+        appendPart(sentence);
+        continue;
+      }
+
+      /*
+       * Çok uzun tek bir cümle gelirse
+       * güvenli karakter parçalarına böl.
+       */
+      for (
+        let start = 0;
+        start < sentence.length;
+        start += maxCharacters
+      ) {
+        const piece =
+          sentence
+            .slice(
+              start,
+              start + maxCharacters
+            )
+            .trim();
+
+        if (piece) {
+          appendPart(piece);
+        }
+      }
+    }
+  }
+
+  for (const paragraph of paragraphs) {
+    appendPart(paragraph);
+  }
+
+  pushCurrentChunk();
+
+  return chunks;
+}
+
+async function createSpeechBuffer({
+  text,
+  instructions,
+  voice,
+}) {
+  const response =
+    await client.audio.speech.create({
+      model: "gpt-4o-mini-tts",
+      voice,
+      input: text,
+      instructions,
+      response_format: "mp3",
+    });
+
+  return Buffer.from(
+    await response.arrayBuffer()
+  );
 }
 
 async function createStorySpeech({
@@ -432,7 +581,13 @@ async function createStorySpeech({
   outputDirectory,
   voice = "marin",
 }) {
-  if (!profile?.voiceEnabled) {
+  /*
+   * Sadece açıkça false ise ses kapalıdır.
+   * Alan gönderilmezse seslendirme çalışmaya devam eder.
+   */
+  if (
+    profile?.voiceEnabled === false
+  ) {
     return null;
   }
 
@@ -443,7 +598,9 @@ async function createStorySpeech({
   }
 
   if (
-    !Array.isArray(story.illustrations) ||
+    !Array.isArray(
+      story.illustrations
+    ) ||
     story.illustrations.length === 0
   ) {
     throw new Error(
@@ -456,51 +613,113 @@ async function createStorySpeech({
   });
 
   const languageCode =
-    profile.storyLanguage || "auto";
+    profile.storyLanguage ||
+    "auto";
 
-  const narrationText = buildNarrationText({
-    childName: profile.childName,
-    guardianStar: story.guardianStar,
-    illustrations: story.illustrations,
-    lullaby: story.lullaby,
-    languageCode,
-  });
+  const narrationText =
+    buildNarrationText({
+      childName:
+        profile.childName,
 
-  const instructions =
-    LANGUAGE_INSTRUCTIONS[languageCode] ||
-    LANGUAGE_INSTRUCTIONS.auto;
+      guardianStar:
+        story.guardianStar,
 
-  const response =
-    await client.audio.speech.create({
-      model: "gpt-4o-mini-tts",
-      voice,
-      input: narrationText,
-      instructions,
-      response_format: "mp3",
+      illustrations:
+        story.illustrations,
+
+      lullaby:
+        story.lullaby,
+
+      languageCode,
     });
 
-  const buffer = Buffer.from(
-    await response.arrayBuffer()
+  const instructions =
+    LANGUAGE_INSTRUCTIONS[
+      languageCode
+    ] ||
+    LANGUAGE_INSTRUCTIONS.auto;
+
+  const narrationChunks =
+    splitNarrationText(
+      narrationText
+    );
+
+  if (
+    narrationChunks.length === 0
+  ) {
+    throw new Error(
+      "Seslendirilecek metin oluşturulamadı."
+    );
+  }
+
+  console.log(
+    `🎙️ Seslendirme ${narrationChunks.length} güvenli parçaya ayrıldı.`
   );
+
+  const audioBuffers = [];
+
+  for (
+    let index = 0;
+    index <
+    narrationChunks.length;
+    index += 1
+  ) {
+    console.log(
+      `🎧 Ses parçası ${index + 1}/${narrationChunks.length} hazırlanıyor...`
+    );
+
+    const audioBuffer =
+      await createSpeechBuffer({
+        text:
+          narrationChunks[index],
+
+        instructions,
+        voice,
+      });
+
+    audioBuffers.push(
+      audioBuffer
+    );
+  }
+
+  /*
+   * MP3 akışları sıralı biçimde birleştirilir.
+   * Kullanıcı tek bir ses dosyası alır.
+   */
+  const combinedBuffer =
+    Buffer.concat(
+      audioBuffers
+    );
 
   const fileName =
-    `${sanitizeFileName(profile.childName)}_` +
+    `${sanitizeFileName(
+      profile.childName
+    )}_` +
     `Yildiz_Masali_Seslendirme.mp3`;
 
-  const outputPath = path.join(
-    outputDirectory,
-    fileName
-  );
+  const outputPath =
+    path.join(
+      outputDirectory,
+      fileName
+    );
 
   await fs.promises.writeFile(
     outputPath,
-    buffer
+    combinedBuffer
+  );
+
+  console.log(
+    `✅ Seslendirme hazır: ${outputPath}`
   );
 
   return {
     outputPath,
     fileName,
     narrationText,
+
+    narrationChunkCount:
+      narrationChunks.length,
+
     disclosure:
       "Bu seslendirme yapay zekâ tarafından oluşturulmuştur.",
   };
