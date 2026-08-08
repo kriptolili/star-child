@@ -7,6 +7,18 @@ const STORY_BOOK_SCHEMA = {
     inspirationStar: { type: "string" },
     title: { type: "string" },
     openingNote: { type: "string" },
+    // YENİ ALAN: Doğum tarihi/saati/yerinden ilham alan, çocuğun
+    // kişiliğini betimleyen kısa sıfat listesi (örn. "enerjik",
+    // "meraklı", "sevgi dolu"). Artık ZORUNLU bir JSON alanı olduğu
+    // için model bunu her masalda üretmek zorunda — daha önce bu
+    // sadece serbest metin içinde "öneri" olduğu için bazı
+    // masallarda hiç çıkmıyordu.
+    personalityTraits: {
+      type: "array",
+      minItems: 4,
+      maxItems: 5,
+      items: { type: "string" },
+    },
     story: { type: "string" },
     lullaby: { type: "string" },
     starMessage: { type: "string" },
@@ -27,8 +39,8 @@ const STORY_BOOK_SCHEMA = {
             type: "array",
             minItems: 4,
             maxItems: 4,
-            items: { type: "string" }
-          }
+            items: { type: "string" },
+          },
         },
         required: [
           "pageNumber",
@@ -36,10 +48,10 @@ const STORY_BOOK_SCHEMA = {
           "text",
           "caption",
           "prompt",
-          "hiddenDetails"
-        ]
-      }
-    }
+          "hiddenDetails",
+        ],
+      },
+    },
   },
   required: [
     "guardianStar",
@@ -47,11 +59,12 @@ const STORY_BOOK_SCHEMA = {
     "inspirationStar",
     "title",
     "openingNote",
+    "personalityTraits",
     "story",
     "lullaby",
     "starMessage",
-    "illustrations"
-  ]
+    "illustrations",
+  ],
 };
 
 module.exports = {

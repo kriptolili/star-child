@@ -1,4 +1,3 @@
-
 const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
@@ -20,23 +19,47 @@ function findExistingFont(paths) {
   return paths.find((fontPath) => fs.existsSync(fontPath)) || null;
 }
 function registerFonts(doc) {
-  const regularFontPath = findExistingFont([
+  // DÜZELTME: Önceki hâli yalnızca macOS'a özel sistem font yollarını
+  // (/System/Library/Fonts/...) arıyordu. Render'ın Linux sunucusunda
+  // bu yollar hiç yok, bu yüzden Helvetica'ya düşüyordu ve Helvetica
+  // Türkçe karakterleri (ç, ş, ı, ğ, ü, ö) doğru render edemediği için
+  // PDF'te bozuk karakterler çıkıyordu.
+  //
+  // Artık proje ile birlikte gelen (backend/fonts/) bir font
+  // kullanılıyor — hem local'de (Mac) hem Render'da (Linux) aynı
+  // dosya, aynı sonuç. Noto Sans, Türkçe karakterleri tam destekler.
+  const bundledFontPath = path.join(
+    __dirname,
+    "..",
+    "fonts",
+    "NotoSans-Regular.ttf"
+  );
+
+  if (fs.existsSync(bundledFontPath)) {
+    doc.registerFont("StarBody", bundledFontPath);
+    doc.registerFont("StarBold", bundledFontPath);
+    return {
+      regular: "StarBody",
+      bold: "StarBold",
+    };
+  }
+
+  // Bundled font bulunamazsa (beklenmedik durum), eski macOS yolu
+  // yedek olarak denenir; o da yoksa PDFKit'in dahili Helvetica'sına
+  // düşülür (Türkçe karakterler yine bozuk çıkabilir).
+  const fallbackFontPath = findExistingFont([
     "/System/Library/Fonts/Supplemental/Arial.ttf",
     "/Library/Fonts/Arial.ttf",
   ]);
-  const boldFontPath = findExistingFont([
-    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-    "/Library/Fonts/Arial Bold.ttf",
-  ]);
-  if (regularFontPath) {
-    doc.registerFont("StarBody", regularFontPath);
+
+  if (fallbackFontPath) {
+    doc.registerFont("StarBody", fallbackFontPath);
+    doc.registerFont("StarBold", fallbackFontPath);
   }
-  if (boldFontPath) {
-    doc.registerFont("StarBold", boldFontPath);
-  }
+
   return {
-    regular: regularFontPath ? "StarBody" : "Helvetica",
-    bold: boldFontPath ? "StarBold" : "Helvetica-Bold",
+    regular: fallbackFontPath ? "StarBody" : "Helvetica",
+    bold: fallbackFontPath ? "StarBold" : "Helvetica-Bold",
   };
 }
 const colors = {
@@ -184,7 +207,7 @@ function drawCover({ doc, fonts, story, imagePath, profile, labels }) {
       characterSpacing: 2,
     });
 }
-function drawManifestoPage({ doc, fonts, profile, labels }) {
+function drawManifestoPage({ doc, fonts, profile, story, labels }) {
   doc.addPage();
   fillPage(doc, colors.midnight);
   addStars(doc);
@@ -220,6 +243,27 @@ function drawManifestoPage({ doc, fonts, profile, labels }) {
       400,
       { width: doc.page.width - 140, align: "center", lineGap: 5 },
     );
+
+  // Doğum bilgilerinin hemen altına, o bilgilerden ilham alan kısa
+  // kişilik betimlemesi ekleniyor — kullanıcının verdiği doğum
+  // tarihi/saat/yer bilgisinin gerçekten kullanıldığının kanıtı.
+  const personalityTraits = Array.isArray(story?.personalityTraits)
+    ? story.personalityTraits.filter(
+        (trait) => typeof trait === "string" && trait.trim().length > 0,
+      )
+    : [];
+
+  if (personalityTraits.length > 0) {
+    doc
+      .font(fonts.regular)
+      .fontSize(14)
+      .fillColor(colors.gold)
+      .text(personalityTraits.join("  ·  "), 60, 500, {
+        width: doc.page.width - 120,
+        align: "center",
+        lineGap: 6,
+      });
+  }
 }
 function drawGuardianStarPage({ doc, fonts, story, labels }) {
   doc.addPage();
@@ -400,7 +444,7 @@ async function createPdf({ profile, story, imagePaths, outputPath }) {
   const stream = fs.createWriteStream(outputPath);
   doc.pipe(stream);
   drawCover({ doc, fonts, story, imagePath: imagePaths[0], profile, labels });
-  drawManifestoPage({ doc, fonts, profile, labels });
+  drawManifestoPage({ doc, fonts, profile, story, labels });
   drawGuardianStarPage({ doc, fonts, story, labels });
   story.illustrations.forEach((page, index) => {
     drawIllustratedPage({
@@ -449,6 +493,13 @@ async function createStarPackage({ profile, story }) {
     "utf8",
   );
   const imagePaths = [];
+  // Karakter süreklilik düzeltmesi: ilk sayfanın ve bir önceki
+  // sayfanın gerçek görselini, sonraki her sayfa üretimine referans
+  // olarak veriyoruz. Böylece model karakteri metinden "hayal etmek"
+  // yerine doğrudan görüp koruyabiliyor.
+  let firstPageImagePath = null;
+  let previousPageImagePath = null;
+
   for (let index = 0; index < story.illustrations.length; index += 1) {
     const page = story.illustrations[index];
     const fileName =
@@ -462,13 +513,30 @@ async function createStarPackage({ profile, story }) {
     );
     console.log(` ${index + 1}/10. resim hazırlanıyor: ` + `${page.title}`);
     if (!fs.existsSync(expectedPath)) {
-      await generateIllustration({ prompt: page.prompt, fileName });
+      const referenceImagePaths = [
+        firstPageImagePath,
+        previousPageImagePath,
+      ].filter(
+        (referencePath, refIndex, all) =>
+          referencePath && all.indexOf(referencePath) === refIndex,
+      );
+
+      await generateIllustration({
+        prompt: page.prompt,
+        fileName,
+        referenceImagePaths,
+      });
     } else {
       console.log("   ↳ Resim zaten var, yeniden üretilmedi.");
     }
     const copiedPath = path.join(imagesDirectory, fileName);
     fs.copyFileSync(expectedPath, copiedPath);
     imagePaths.push(copiedPath);
+
+    if (index === 0) {
+      firstPageImagePath = expectedPath;
+    }
+    previousPageImagePath = expectedPath;
   }
   const pdfPath = path.join(
     booksDirectory,

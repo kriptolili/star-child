@@ -45,7 +45,7 @@ TEMEL MARKA İLKELERİ:
 - Kullanıcının seçtiği masal diline kesinlikle uy.
 - "auto" seçilmişse doğum yerinden makul bir dil önerisi çıkar.
 - Doğum yeri tek başına dili kesinleştirmiyorsa sade ve doğal Türkçe kullan.
-- Başlık, açılış notu, masal, ninni, yıldız mesajı,
+- Başlık, açılış notu, kişilik betimlemesi, masal, ninni, yıldız mesajı,
   sayfa başlıkları, sayfa metinleri ve alt yazılar aynı seçilen dilde olmalıdır.
 - Görsel üretim promptları her zaman ayrıntılı İngilizce yazılmalıdır.
 - JSON alan adları kesinlikle değiştirilmemelidir.
@@ -68,6 +68,18 @@ GÜVENLİK:
 - Karanlık, kasvetli veya ürkütücü sahneler oluşturma.
 - Çocuğu burcuyla sınırlama.
 - Kesin kişilik tanımları veya tıbbi, bilimsel değerlendirmeler yapma.
+
+KİŞİLİK BETİMLEMESİ — ZORUNLU ALAN:
+- "personalityTraits" alanı HER masalda MUTLAKA doldurulmalıdır, asla boş
+  bırakılmamalı veya atlanmamalıdır.
+- Doğum tarihi, saati ve yerinden yaratıcı biçimde ilham alınarak
+  4-5 kısa, sade sıfattan oluşan bir liste oluştur.
+- Örnek biçim: ["enerjik", "meraklı", "sevgi dolu", "maceracı"]
+  veya ["sayıları sever", "sorumluluk sahibi", "neşeli", "hayalperest"].
+- Uzun, şiirsel cümleler değil, kısa ve sade sıfatlar/ifadeler kullan.
+- Bu liste seçilen masal dilinde yazılmalıdır.
+- Kesin kişilik tanısı veya bilimsel iddia gibi sunma; yalnızca
+  sevgi dolu, ilham verici bir betimleme olarak sun.
 
 MASAL STANDARDI:
 - Yaklaşık 700-1000 kelime olmalı.
@@ -343,7 +355,7 @@ DİL TALİMATI
 Bütün kullanıcıya görünen içerikleri şu dilde üret:
 ${selectedLanguage}
 
-Başlık, açılış notu, masal, ninni, yıldız mesajı,
+Başlık, açılış notu, kişilik betimlemesi, masal, ninni, yıldız mesajı,
 sayfa başlıkları, sayfa metinleri ve alt yazılar bu dilde olmalıdır.
 
 Sadece görsel üretim promptları ayrıntılı İngilizce yazılmalıdır.
@@ -360,7 +372,7 @@ Gerçek fotoğraf referansı ayrıca sağlanana kadar yalnızca görünüm terci
 
 ASTROLOJİK İLHAM
 
-Mila'nın ya da ilgili çocuğun doğduğu andaki gökyüzü ve zodyak konumlarından
+${childName}'nin doğduğu andaki gökyüzü ve zodyak konumlarından
 yalnızca yaratıcı biçimde ilham al.
 
 Masalda merak, neşe, şefkat, hayal gücü, keşif, sabır veya cesaret gibi
@@ -368,6 +380,16 @@ olumlu renklerden çocuğa uygun olanları nazikçe hissettir.
 
 Bunları kesin kişilik analizi, bilimsel değerlendirme,
 gelecek tahmini veya kader iddiası olarak sunma.
+
+KİŞİLİK BETİMLEMESİ (personalityTraits) — ZORUNLU
+
+Doğum tarihi, saati ve yerinden ilham alarak ${childName} için
+4-5 kısa ve sade sıfattan oluşan bir kişilik listesi oluştur.
+
+Örnek biçim: ["enerjik", "meraklı", "sevgi dolu", "maceracı"]
+
+Bu alan asla boş bırakılmamalı veya atlanmamalıdır.
+Liste seçilen masal dilinde (${selectedLanguage}) yazılmalıdır.
 
 İSTENEN KİTAP
 
@@ -378,10 +400,11 @@ Bu doğum anından yaratıcı biçimde ilham alarak yalnızca bu çocuk için:
 3. İlham aldığı gerçek yıldızı seç.
 4. Özgün masal başlığı oluştur.
 5. Doğum anının eşsizliğini anlatan kişisel açılış notu yaz.
-6. Yaklaşık 700-1000 kelimelik sıcak ve özgün yıldız masalını yaz.
-7. 6-8 kısa ve özgün dizelik ninni oluştur.
-8. Koruyucu yıldızın umut veren mesajını yaz.
-9. Masalı tam olarak 10 sıralı, renkli ve resimli kitap sayfasına böl.
+6. Yukarıda tarif edilen personalityTraits listesini oluştur.
+7. Yaklaşık 700-1000 kelimelik sıcak ve özgün yıldız masalını yaz.
+8. 6-8 kısa ve özgün dizelik ninni oluştur.
+9. Koruyucu yıldızın umut veren mesajını yaz.
+10. Masalı tam olarak 10 sıralı, renkli ve resimli kitap sayfasına böl.
 
 HER RESİMLİ SAYFA İÇİN
 
