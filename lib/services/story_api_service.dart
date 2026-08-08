@@ -69,6 +69,29 @@ class StoryApiService {
     return VideoStatusResult.fromJson(decodedBody);
   }
 
+  /// Daha önce hazırlanmış Yıldız Paketi'ndeki renkli sayfalardan
+  /// siyah-beyaz bir boyama kitabı PDF'i oluşturur.
+  ///
+  /// Not: Bu metod çağrılmadan önce createPackage() ile paket
+  /// hazırlanmış olmalı — boyama kitabı, o paketin renkli
+  /// sayfalarını referans alır.
+  Future<ColoringBookResult> createColoringBook({
+    required ChildProfile profile,
+    required Map<String, dynamic> storyJson,
+  }) async {
+    final decodedBody = await _postJson(
+      endpoint: '/coloring-book',
+      body: {
+        'profile': _profileBody(profile),
+        'story': storyJson,
+      },
+      timeout: const Duration(minutes: 10),
+      fallbackError:
+          'Boyama kitabı hazırlanamadı. Lütfen yeniden deneyin.',
+    );
+    return ColoringBookResult.fromJson(decodedBody);
+  }
+
   Map<String, dynamic> _profileBody(
     ChildProfile profile,
   ) {
@@ -286,6 +309,33 @@ class VideoStatusResult {
           : 0,
       error: json['error'] is String
           ? json['error'] as String
+          : null,
+    );
+  }
+}
+
+class ColoringBookResult {
+  const ColoringBookResult({
+    required this.message,
+    required this.coloringBookUrl,
+  });
+
+  final String message;
+  final String? coloringBookUrl;
+
+  bool get hasColoringBook =>
+      coloringBookUrl != null &&
+      coloringBookUrl!.trim().isNotEmpty;
+
+  factory ColoringBookResult.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return ColoringBookResult(
+      message: json['message'] is String
+          ? json['message'] as String
+          : 'Boyama kitabın hazır.',
+      coloringBookUrl: json['coloringBookUrl'] is String
+          ? json['coloringBookUrl'] as String
           : null,
     );
   }

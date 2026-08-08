@@ -1,4 +1,4 @@
-require("dotenv").config();
+equire("dotenv").config();
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
@@ -6,6 +6,7 @@ const { createStoryBookPlan } = require("./services/story_service");
 const { createStarBook } = require("./services/pdf_service");
 const { createStorySpeech } = require("./services/speech_service");
 const { createStarPackage } = require("./services/package_service");
+const { createColoringBook } = require("./services/coloring_book_service");
 const videoJobStore = require("./services/video_job_store");
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -250,6 +251,96 @@ app.post("/package", async (req, res) => {
       });
   }
 });
+
+function sanitizeChildSlug(value) {
+  return String(value || "star_child")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+app.post("/coloring-book", async (req, res) => {
+  try {
+    const { profile: rawProfile, story } = req.body ?? {};
+
+    if (!rawProfile || !story) {
+      return res.status(400).json({
+        error:
+          "Boyama kitabı için profil ve masal verisi gereklidir.",
+      });
+    }
+
+    const profile = createProfileFromRequest(rawProfile);
+    const validationError = validateProfile(profile);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    // Boyama kitabı, daha önce /package ile üretilmiş renkli
+    // sayfaları referans alır. Bu yüzden önce paketin hazırlanmış
+    // olması gerekir; burada yalnızca diskteki mevcut görselleri
+    // arıyoruz, yeniden üretmiyoruz.
+    const childSlug = sanitizeChildSlug(profile.childName);
+    const imagesDirectory = path.join(
+      __dirname,
+      "generated",
+      "premium",
+      childSlug,
+      "images",
+    );
+
+    if (!fs.existsSync(imagesDirectory)) {
+      return res.status(400).json({
+        error:
+          "Önce Yıldız Paketini hazırlaman gerekiyor. " +
+          "Boyama kitabı, mevcut renkli sayfalardan üretiliyor.",
+      });
+    }
+
+    const colorImagePaths = fs
+      .readdirSync(imagesDirectory)
+      .filter((fileName) =>
+        fileName.startsWith(`${childSlug}_sayfa_`),
+      )
+      .sort()
+      .map((fileName) => path.join(imagesDirectory, fileName));
+
+    if (colorImagePaths.length !== 10) {
+      return res.status(400).json({
+        error:
+          "Boyama kitabı için tam 10 renkli sayfa bulunamadı. " +
+          "Önce Yıldız Paketini hazırla.",
+      });
+    }
+
+    console.log(
+      ` ${profile.childName} için boyama kitabı hazırlanıyor...`,
+    );
+
+    const coloringResult = await createColoringBook({
+      profile,
+      story,
+      colorImagePaths,
+    });
+
+    console.log(
+      `✅ Boyama kitabı hazır: ${coloringResult.pdfPath}`,
+    );
+
+    return res.json({
+      message: "Boyama kitabın hazır.",
+      coloringBookUrl: generatedFileUrl(req, coloringResult.pdfPath),
+    });
+  } catch (error) {
+    console.error("Boyama kitabı oluşturma hatası:", error);
+    return res.status(500).json({
+      error: "Boyama kitabı hazırlanırken bir sorun oluştu.",
+    });
+  }
+});
+
 app.get("/video-status/:jobId", (req, res) => {
   const { jobId } = req.params;
   const job = videoJobStore.getJob(jobId);

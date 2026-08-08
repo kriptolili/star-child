@@ -37,6 +37,12 @@ class _StoryScreenState extends State<StoryScreen> {
   Timer? _videoStatusTimer;
   bool _isCheckingVideoStatus = false;
 
+  // Boyama kitabı, paket hazır olduktan sonra ayrı bir istekle
+  // (talep üzerine) hazırlanır.
+  bool _isPreparingColoringBook = false;
+  String? _coloringBookUrl;
+  String? _coloringBookError;
+
   ChildProfile get profile => widget.profile;
   StoryResult get result => widget.result;
 
@@ -59,6 +65,8 @@ class _StoryScreenState extends State<StoryScreen> {
       _isPreparingPackage = true;
       _packageResult = null;
       _packageError = null;
+      _coloringBookUrl = null;
+      _coloringBookError = null;
     });
 
     try {
@@ -145,6 +153,40 @@ class _StoryScreenState extends State<StoryScreen> {
 
   String _cleanError(Object error) {
     return error.toString().replaceFirst('Exception: ', '').trim();
+  }
+
+  Future<void> _prepareColoringBook() async {
+    if (_isPreparingColoringBook) return;
+
+    setState(() {
+      _isPreparingColoringBook = true;
+      _coloringBookError = null;
+    });
+
+    try {
+      // NOT: 'result' burada widget.result getter'ını (StoryResult)
+      // ifade eder; API'den dönen yanıtı farklı bir isimle
+      // (coloringBookResult) tutuyoruz ki bu getter'ın gölgelenmesini
+      // (shadowing) önleyelim.
+      final coloringBookResult = await _storyApiService
+          .createColoringBook(
+        profile: profile,
+        storyJson: result.toJson(),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _coloringBookUrl = coloringBookResult.coloringBookUrl;
+        _isPreparingColoringBook = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _coloringBookError = _cleanError(error);
+        _isPreparingColoringBook = false;
+      });
+    }
   }
 
   Future<void> _openUrl(
@@ -342,6 +384,21 @@ class _StoryScreenState extends State<StoryScreen> {
                     unavailableMessage: 'Your story video is not ready yet.',
                   ),
                 ),
+                if (packageResult != null &&
+                    packageResult.hasImages) ...[
+                  const SizedBox(height: 18),
+                  _ColoringBookSection(
+                    isPreparing: _isPreparingColoringBook,
+                    coloringBookUrl: _coloringBookUrl,
+                    errorMessage: _coloringBookError,
+                    onPrepare: _prepareColoringBook,
+                    onOpen: () => _openUrl(
+                      _coloringBookUrl,
+                      unavailableMessage:
+                          'Your coloring book is not ready yet.',
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 18),
                 PrimaryButton(
                   label: 'Create Another Story',
@@ -368,6 +425,7 @@ class _StoryScreenState extends State<StoryScreen> {
     );
   }
 }
+
 class _PackageSection extends StatelessWidget {
   const _PackageSection({
     required this.isPreparing,
@@ -626,6 +684,7 @@ class _PackageSection extends StatelessWidget {
     );
   }
 }
+
 class _PreparingPackageIndicator extends StatelessWidget {
   const _PreparingPackageIndicator();
 
@@ -814,6 +873,161 @@ class _UnavailablePackageItem extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ColoringBookSection extends StatelessWidget {
+  const _ColoringBookSection({
+    required this.isPreparing,
+    required this.coloringBookUrl,
+    required this.errorMessage,
+    required this.onPrepare,
+    required this.onOpen,
+  });
+
+  final bool isPreparing;
+  final String? coloringBookUrl;
+  final String? errorMessage;
+  final VoidCallback onPrepare;
+  final VoidCallback onOpen;
+
+  bool get isReady =>
+      coloringBookUrl != null && coloringBookUrl!.trim().isNotEmpty;
+  bool get hasError =>
+      errorMessage != null && errorMessage!.trim().isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.field.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isReady ? AppColors.gold : AppColors.fieldBorder,
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.brush_rounded,
+            color: AppColors.gold,
+            size: 36,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            isReady
+                ? 'Coloring Book is Ready 🎨'
+                : 'Turn This Story into a Coloring Book',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.cream,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isReady
+                ? 'A black-and-white version of all 10 pages, '
+                    'ready to print and color.'
+                : 'Create a printable black-and-white version '
+                    'of the same 10 pages.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.lavender,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          if (hasError) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0x33B55C6C),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0x66D98898)),
+              ),
+              child: Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.cream,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (isPreparing)
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: AppColors.cream,
+                  ),
+                ),
+                SizedBox(width: 10),
+                Text(
+                  'Preparing coloring pages...',
+                  style: TextStyle(
+                    color: AppColors.cream,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            )
+          else if (isReady)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onOpen,
+                icon: const Icon(Icons.menu_book_rounded),
+                label: const Text('Open Coloring Book'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.cream,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: AppColors.gold),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: onPrepare,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.gold,
+                  foregroundColor: AppColors.darkText,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Text(
+                  hasError ? 'Try Again' : 'Create Coloring Book',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
