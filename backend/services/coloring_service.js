@@ -7,10 +7,6 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Renkli sayfayı, siyah-beyaz boyama sayfasına dönüştürürken
-// kullanılacak talimat. Zaten var olan renkli görseli referans
-// aldığımız için karakter/sahne/kompozisyon otomatik olarak aynı
-// kalıyor — yalnızca üslup siyah-beyaz çizgi resme dönüşüyor.
 const COLORING_PAGE_PROMPT = `
 Convert this illustration into a black-and-white coloring book page
 for children.
@@ -31,15 +27,6 @@ Style requirements:
 No text, no letters, no watermark.
 `.trim();
 
-/**
- * Var olan bir renkli illüstrasyondan siyah-beyaz boyama sayfası
- * üretir.
- *
- * @param {string} colorImagePath - Referans alınacak renkli görselin
- *   disk yolu (zaten üretilmiş olmalı).
- * @param {string} fileName - Kaydedilecek boyama sayfası dosya adı.
- * @param {string} outputDirectory - Kayıt klasörü.
- */
 async function generateColoringPage({
   colorImagePath,
   fileName,
@@ -47,14 +34,14 @@ async function generateColoringPage({
 }) {
   if (!fs.existsSync(colorImagePath)) {
     throw new Error(
-      `Boyama sayfası için renkli görsel bulunamadı: ${colorImagePath}`,
+      "Boyama sayfası için renkli görsel bulunamadı: " + colorImagePath
     );
   }
 
   const referenceFile = await toFile(
     fs.createReadStream(colorImagePath),
     path.basename(colorImagePath),
-    { type: "image/png" },
+    { type: "image/png" }
   );
 
   const result = await client.images.edit({
