@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const OpenAI = require("openai");
+const { toFile } = require("openai");
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -39,15 +40,23 @@ async function generateIllustration({
   let result;
 
   if (hasReferenceImages) {
-    // Referans görselleri OpenAI'nin beklediği dosya akışı (stream)
-    // formatına çeviriyoruz.
-    const referenceStreams = referenceImagePaths
-      .filter((referencePath) => fs.existsSync(referencePath))
-      .map((referencePath) => fs.createReadStream(referencePath));
+    // DÜZELTME: fs.createReadStream() dosyayı tip/isim bilgisi
+    // olmadan gönderiyordu, OpenAI da bunu "application/octet-stream"
+    // (bilinmeyen ikili veri) sanıp reddediyordu. `toFile()` ile
+    // dosyayı açıkça PNG olarak etiketliyoruz.
+    const referenceFiles = await Promise.all(
+      referenceImagePaths
+        .filter((referencePath) => fs.existsSync(referencePath))
+        .map((referencePath) =>
+          toFile(fs.createReadStream(referencePath), path.basename(referencePath), {
+            type: "image/png",
+          }),
+        ),
+    );
 
     result = await client.images.edit({
       model: "gpt-image-2",
-      image: referenceStreams,
+      image: referenceFiles,
       prompt,
       size: "1024x1536",
       quality: "low",
