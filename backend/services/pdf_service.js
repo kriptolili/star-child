@@ -36,7 +36,7 @@ async function createSimpleStarBook({ profile, story }) {
   });
 
   doc.moveDown();
-  doc.fontSize(16).text(`Koruyucu yıldız: ${story.guardianStar}`, {
+  doc.fontSize(16).text(`Dost yıldız: ${story.guardianStar}`, {
     align: "center",
   });
 

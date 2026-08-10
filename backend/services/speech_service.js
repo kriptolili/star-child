@@ -99,7 +99,7 @@ function getNarrationPhrases(languageCode) {
       ready:
         "Hazırsan, birlikte yıldızlara doğru yola çıkalım.",
       guardian: (star) =>
-        `Koruyucu yıldızın ${star} yanında.`,
+        `Dost yıldızın ${star} yanında.`,
       lullaby:
         "Şimdi Yıldız Ninnisi zamanı.",
       goodNight: (name) =>

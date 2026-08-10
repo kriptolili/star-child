@@ -487,7 +487,7 @@ function drawClosingPage(doc, fonts, story) {
     `Belki yıllar sonra bu kitabı kendi ellerinle yeniden açacaksın.\n\n` +
     `O gün geldiğinde çocukluğunun hayal gücünü, ilk gülüşlerini ` +
     `ve bu sayfalarda saklı sıcaklığı yeniden bulmanı dileriz.\n\n` +
-    `Koruyucu yıldızın ${story.guardianStar}, ` +
+    `Dost yıldızın ${story.guardianStar}, ` +
     `${story.inspirationStar} yıldızının parlaklığından ilham alan ` +
     `hayali yıldız dostun olarak çıktığınız her yeni yolculukta ` +
     `sana merakı, cesareti ve umudu hatırlatsın.\n\n` +

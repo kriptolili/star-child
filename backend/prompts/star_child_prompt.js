@@ -84,7 +84,7 @@ KİŞİLİK BETİMLEMESİ — ZORUNLU ALAN:
 MASAL STANDARDI:
 - Yaklaşık 700-1000 kelime olmalı.
 - Bir başlangıç, keşif, sıcak gelişim ve huzurlu final içermeli.
-- Koruyucu yıldız aktif, sevimli ve sevgi dolu bir yol arkadaşı olmalı.
+- Dost yıldız aktif, sevimli ve sevgi dolu bir yol arkadaşı olmalı.
 - Doğaya, hayvanlara, dostluğa, meraka ve keşfe bolca yer ver.
 - Masalın dünyası güvenli, canlı ve çocukların yeniden ziyaret etmek
   isteyeceği bir Mutluluk Âlemi hissi taşımalı.
@@ -96,7 +96,7 @@ KORUYUCU YILDIZ:
 - Gerçek gökyüzündeki tanınmış bir yıldızdan yalnızca ilham al.
 - Gerçek yıldızın çocuğu koruduğunu, ona ait olduğunu veya kaderini
   belirlediğini iddia etme.
-- Hayali koruyucu yıldızın adı, görünümü ve kişiliği bütün kitapta aynı kalmalıdır.
+- Hayali Dost yıldızın adı, görünümü ve kişiliği bütün kitapta aynı kalmalıdır.
 
 STAR CHILD KİTAP STANDARDI:
 - Tam olarak 10 resimli içerik sayfası tasarla.
@@ -201,7 +201,7 @@ MUTLAK KARAKTER DEVAMLILIĞI — EN ÖNEMLİ GÖRSEL KURAL:
   temel yüz ifadesi ve karakter tasarımı.
 - Yalnızca duruş, hareket, mimik ve ortam değişebilir.
 - Çocuk her sayfada ilk bakışta tanınabilmelidir.
-- Koruyucu yıldızın şekli, rengi, yüzü, ışığı, büyüklüğü
+- Dost yıldızın şekli, rengi, yüzü, ışığı, büyüklüğü
   ve karakteri bütün sahnelerde değişmeden korunmalıdır.
 - Tekrar görünen hayvan dostlar da aynı tasarımla devam etmelidir.
 - Her İngilizce görsel promptunda aynen şu süreklilik talimatı bulunmalıdır:
@@ -395,15 +395,15 @@ Liste seçilen masal dilinde (${selectedLanguage}) yazılmalıdır.
 
 Bu doğum anından yaratıcı biçimde ilham alarak yalnızca bu çocuk için:
 
-1. Kolay söylenen özgün bir hayali koruyucu yıldız adı oluştur.
-2. Koruyucu yıldızın kısa ve sıcak anlamını yaz.
+1. Kolay söylenen özgün bir hayali Dost yıldız adı oluştur.
+2. Dost yıldızın kısa ve sıcak anlamını yaz.
 3. İlham aldığı gerçek yıldızı seç.
 4. Özgün masal başlığı oluştur.
 5. Doğum anının eşsizliğini anlatan kişisel açılış notu yaz.
 6. Yukarıda tarif edilen personalityTraits listesini oluştur.
 7. Yaklaşık 700-1000 kelimelik sıcak ve özgün yıldız masalını yaz.
 8. 6-8 kısa ve özgün dizelik ninni oluştur.
-9. Koruyucu yıldızın umut veren mesajını yaz.
+9. Dost yıldızın umut veren mesajını yaz.
 10. Masalı tam olarak 10 sıralı, renkli ve resimli kitap sayfasına böl.
 
 HER RESİMLİ SAYFA İÇİN
@@ -418,7 +418,7 @@ GÖRSEL PROMPTLAR İÇİN MUTLAK KURALLAR
 
 Her İngilizce görsel promptunda:
 
-1. Aynı çocuk ve aynı koruyucu yıldızın devam ettiğini açıkça belirt.
+1. Aynı çocuk ve aynı Dost yıldızın devam ettiğini açıkça belirt.
 2. Çocuğun yüzü, ten tonu, gözleri, saçı, yaşı,
    vücut oranları ve kıyafet paletinin değişmemesini belirt.
 3. Star Child görsel evreninden doğal ayrıntılar ekle.

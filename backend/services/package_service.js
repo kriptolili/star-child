@@ -5,9 +5,11 @@ const { generateIllustration } = require("./image_service");
 const { createStorySpeech } = require("./speech_service");
 const { createStoryVideo } = require("./video_service");
 const videoJobStore = require("./video_job_store");
+
 function createDirectory(directoryPath) {
   fs.mkdirSync(directoryPath, { recursive: true });
 }
+
 function safeFileName(value) {
   return String(value || "star_child")
     .normalize("NFD")
@@ -15,9 +17,11 @@ function safeFileName(value) {
     .replace(/[^\w-]+/g, "_")
     .replace(/^_+|_+$/g, "");
 }
+
 function findExistingFont(paths) {
   return paths.find((fontPath) => fs.existsSync(fontPath)) || null;
 }
+
 function registerFonts(doc) {
   // DÜZELTME: Önceki hâli yalnızca macOS'a özel sistem font yollarını
   // (/System/Library/Fonts/...) arıyordu. Render'ın Linux sunucusunda
@@ -62,6 +66,7 @@ function registerFonts(doc) {
     bold: fallbackFontPath ? "StarBold" : "Helvetica-Bold",
   };
 }
+
 const colors = {
   midnight: "#171432",
   deepBlue: "#252050",
@@ -71,9 +76,11 @@ const colors = {
   text: "#514B63",
   white: "#FFFFFF",
 };
+
 function fillPage(doc, color) {
   doc.save().rect(0, 0, doc.page.width, doc.page.height).fill(color).restore();
 }
+
 function addStars(doc) {
   const stars = [
     [50, 70, 2],
@@ -91,11 +98,12 @@ function addStars(doc) {
   }
   doc.restore();
 }
+
 function getLocalizedLabels(languageCode) {
   const labels = {
     tr: {
       childBook: "YILDIZ KİTABI",
-      guardianStar: "KORUYUCU YILDIZI",
+      guardianStar: "DOST YILDIZI",
       inspiredBy: "İLHAM ALDIĞI GERÇEK YILDIZ",
       lullaby: "Yıldız Ninnisi",
       whispers: "FISILDIYOR",
@@ -110,7 +118,7 @@ function getLocalizedLabels(languageCode) {
     },
     en: {
       childBook: "STAR BOOK",
-      guardianStar: "YOUR GUARDIAN STAR",
+      guardianStar: "YOUR FRIEND STAR",
       inspiredBy: "INSPIRED BY THE REAL STAR",
       lullaby: "Star Lullaby",
       whispers: "WHISPERS",
@@ -125,7 +133,7 @@ function getLocalizedLabels(languageCode) {
     },
     es: {
       childBook: "LIBRO DE LAS ESTRELLAS",
-      guardianStar: "TU ESTRELLA GUARDIANA",
+      guardianStar: "TU ESTRELLA AMIGA",
       inspiredBy: "INSPIRADA EN LA ESTRELLA REAL",
       lullaby: "Canción de Cuna Estelar",
       whispers: "SUSURRA",
@@ -141,6 +149,7 @@ function getLocalizedLabels(languageCode) {
   };
   return labels[languageCode] || labels.en;
 }
+
 function drawCover({ doc, fonts, story, imagePath, profile, labels }) {
   doc.image(imagePath, 0, 0, {
     width: doc.page.width,
@@ -207,6 +216,7 @@ function drawCover({ doc, fonts, story, imagePath, profile, labels }) {
       characterSpacing: 2,
     });
 }
+
 function drawManifestoPage({ doc, fonts, profile, story, labels }) {
   doc.addPage();
   fillPage(doc, colors.midnight);
@@ -265,6 +275,7 @@ function drawManifestoPage({ doc, fonts, profile, story, labels }) {
       });
   }
 }
+
 function drawGuardianStarPage({ doc, fonts, story, labels }) {
   doc.addPage();
   fillPage(doc, colors.cream);
@@ -313,6 +324,7 @@ function drawGuardianStarPage({ doc, fonts, story, labels }) {
       align: "center",
     });
 }
+
 function drawIllustratedPage({ doc, fonts, page, imagePath, pageNumber }) {
   doc.addPage();
   fillPage(doc, colors.cream);
@@ -347,6 +359,7 @@ function drawIllustratedPage({ doc, fonts, page, imagePath, pageNumber }) {
       align: "center",
     });
 }
+
 function drawLullabyPage({ doc, fonts, story, labels }) {
   doc.addPage();
   fillPage(doc, colors.midnight);
@@ -393,6 +406,7 @@ function drawLullabyPage({ doc, fonts, story, labels }) {
       lineGap: 5,
     });
 }
+
 function drawClosingPage({ doc, fonts, story, profile, labels }) {
   doc.addPage();
   fillPage(doc, colors.cream);
@@ -428,6 +442,7 @@ function drawClosingPage({ doc, fonts, story, profile, labels }) {
       characterSpacing: 1.2,
     });
 }
+
 async function createPdf({ profile, story, imagePaths, outputPath }) {
   const labels = getLocalizedLabels(profile.storyLanguage);
   const doc = new PDFDocument({
@@ -463,6 +478,7 @@ async function createPdf({ profile, story, imagePaths, outputPath }) {
     stream.on("error", reject);
   });
 }
+
 async function createStarPackage({ profile, story }) {
   if (
     !Array.isArray(story?.illustrations) ||
@@ -562,51 +578,66 @@ async function createStarPackage({ profile, story }) {
   // başarısız olduysa) video üretilemez, çünkü createStoryVideo
   // seslendirme dosyasını zorunlu tutuyor. Bu durumda video görevi
   // hiç başlatılmaz.
+  //
+  // DÜZELTME (aynı anda birden fazla video görevi çakışması):
+  // videoJobStore.createJob() artık zaten devam eden bir görev varsa
+  // hata fırlatıyor (bkz. video_job_store.js). Bu hatayı burada
+  // yakalıyoruz ki art arda gelen istekler tüm paketi (PDF + ses
+  // dahil) çökertmesin — sadece video adımı atlanır, kullanıcı yine
+  // PDF ve sesi alır.
   let videoJobId = null;
   let videoStatus = "unavailable";
 
   if (speechResult?.outputPath && fs.existsSync(speechResult.outputPath)) {
-    videoJobId = videoJobStore.createJob();
-    videoStatus = "processing";
-    videoJobStore.updateJob(videoJobId, { status: "processing" });
+    try {
+      videoJobId = videoJobStore.createJob();
+      videoStatus = "processing";
+      videoJobStore.updateJob(videoJobId, { status: "processing" });
 
-    console.log(`️ Video arka planda başlatılıyor (job: ${videoJobId})...`);
+      console.log(`️ Video arka planda başlatılıyor (job: ${videoJobId})...`);
 
-    createStoryVideo({
-      profile,
-      story,
-      imagePaths,
-      audioPath: speechResult.outputPath,
-      outputDirectory: videoDirectory,
-      onProgress: (percentage) => {
-        videoJobStore.updateJob(videoJobId, {
-          status: "processing",
-          progress: percentage,
-        });
-      },
-    })
-      .then((videoResult) => {
-        videoJobStore.updateJob(videoJobId, {
-          status: "ready",
-          progress: 100,
-          videoPath: videoResult.outputPath,
-          videoFileName: videoResult.fileName,
-          error: null,
-        });
-        console.log(`✅ Video görevi tamamlandı (job: ${videoJobId}).`);
+      createStoryVideo({
+        profile,
+        story,
+        imagePaths,
+        audioPath: speechResult.outputPath,
+        outputDirectory: videoDirectory,
+        onProgress: (percentage) => {
+          videoJobStore.updateJob(videoJobId, {
+            status: "processing",
+            progress: percentage,
+          });
+        },
       })
-      .catch((error) => {
-        // Video hatası (Render zaman aşımı dahil) yalnızca video
-        // görevini "failed" yapar; PDF ve ses paketini bozmaz.
-        console.error(
-          `⚠️ Video görevi başarısız oldu (job: ${videoJobId}):`,
-          error?.message || error,
-        );
-        videoJobStore.updateJob(videoJobId, {
-          status: "failed",
-          error: error?.message || "Bilinmeyen video hatası.",
+        .then((videoResult) => {
+          videoJobStore.updateJob(videoJobId, {
+            status: "ready",
+            progress: 100,
+            videoPath: videoResult.outputPath,
+            videoFileName: videoResult.fileName,
+            error: null,
+          });
+          console.log(`✅ Video görevi tamamlandı (job: ${videoJobId}).`);
+        })
+        .catch((error) => {
+          // Video hatası (Render zaman aşımı dahil) yalnızca video
+          // görevini "failed" yapar; PDF ve ses paketini bozmaz.
+          console.error(
+            `⚠️ Video görevi başarısız oldu (job: ${videoJobId}):`,
+            error?.message || error,
+          );
+          videoJobStore.updateJob(videoJobId, {
+            status: "failed",
+            error: error?.message || "Bilinmeyen video hatası.",
+          });
         });
-      });
+    } catch (videoStartError) {
+      console.warn(
+        `⚠️ Video başlatılamadı, muhtemelen zaten bir video hazırlanıyor: ${videoStartError.message}`,
+      );
+      videoJobId = null;
+      videoStatus = "busy";
+    }
   } else {
     console.log(
       "ℹ️ Seslendirme bulunmadığı için video görevi başlatılmadı.",
@@ -624,4 +655,5 @@ async function createStarPackage({ profile, story }) {
     disclosure: speechResult?.disclosure || null,
   };
 }
+
 module.exports = { createStarPackage };

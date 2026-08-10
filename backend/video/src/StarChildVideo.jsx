@@ -289,7 +289,7 @@ const Intro = ({
             color: COLORS.gold,
           }}
         >
-          Koruyucu yıldızın {guardianStar} yanında.
+          Dost yıldızın {guardianStar} yanında.
         </div>
       </div>
     </AbsoluteFill>
