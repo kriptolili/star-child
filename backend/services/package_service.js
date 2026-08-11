@@ -6,6 +6,13 @@ const { createStorySpeech } = require("./speech_service");
 const { createStoryVideo } = require("./video_service");
 const videoJobStore = require("./video_job_store");
 
+// Video, Remotion Lambda kurulana kadar geçici olarak devre dışı.
+// Render'ın CPU'su Remotion render işini (Chromium + kare kare
+// oluşturma) kaldıramadığı için video zaman aşımına uğruyordu.
+// Bu flag'i true yaptığında video akışı hiçbir kod silinmeden
+// aynen eskisi gibi çalışmaya devam eder.
+const ENABLE_VIDEO = false;
+
 function createDirectory(directoryPath) {
   fs.mkdirSync(directoryPath, { recursive: true });
 }
@@ -585,10 +592,19 @@ async function createStarPackage({ profile, story }) {
   // yakalıyoruz ki art arda gelen istekler tüm paketi (PDF + ses
   // dahil) çökertmesin — sadece video adımı atlanır, kullanıcı yine
   // PDF ve sesi alır.
+  //
+  // ENABLE_VIDEO=false iken (Remotion Lambda kurulana kadar) video
+  // görevi hiç başlatılmaz; videoStatus "disabled" olarak döner ve
+  // Flutter tarafı video seçeneğini "Yakında" olarak gösterebilir.
   let videoJobId = null;
   let videoStatus = "unavailable";
 
-  if (speechResult?.outputPath && fs.existsSync(speechResult.outputPath)) {
+  if (!ENABLE_VIDEO) {
+    videoStatus = "disabled";
+    console.log(
+      "🎬 Video oluşturma şu an devre dışı (ENABLE_VIDEO=false). PDF ve ses paketi normal şekilde dönüyor.",
+    );
+  } else if (speechResult?.outputPath && fs.existsSync(speechResult.outputPath)) {
     try {
       videoJobId = videoJobStore.createJob();
       videoStatus = "processing";
