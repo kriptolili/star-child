@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
 const { generateColoringPage } = require("./coloring_service");
+const { uploadToR2 } = require("./r2Client");
 
 function createDirectory(directoryPath) {
   fs.mkdirSync(directoryPath, { recursive: true });
@@ -244,10 +245,24 @@ async function createColoringBook({ profile, story, colorImagePaths }) {
 
   console.log(`✅ Boyama kitabı hazır: ${pdfPath}`);
 
+  const r2Key = `generated/premium/${childSlug}/coloring/${path.basename(pdfPath)}`;
+  let r2Url = null;
+
+  try {
+    r2Url = await uploadToR2(pdfPath, r2Key, "application/pdf");
+    console.log(`☁️  R2'ye yüklendi: ${r2Url}`);
+  } catch (uploadError) {
+    console.error(
+      "⚠️ R2 yüklemesi başarısız, local path kullanılacak:",
+      uploadError.message,
+    );
+  }
+
   return {
     pdfPath,
     fileName: path.basename(pdfPath),
     imagePaths: coloringImagePaths,
+    r2Url,
   };
 }
 
